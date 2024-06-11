@@ -40,7 +40,7 @@ secp256k1-sys = { version = "0.10.0", default-features = false, path = "./secp25
 serde = { version = "1.0.103", default-features = false, optional = true }
 sp1-precompiles = { git = "https://github.com/succinctlabs/sp1.git", branch = "main", optional = false}
 tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", branch = "patch-v2.0.2" , features = ["keccak"], optional = false }
-# compiler_builtins = { path = "../compiler-builtins", default-features = false, features = ["mem"] }
+k256 = { version = "0.13.3", features = ["ecdsa", "std", "bits"] }
 
 # You likely only want to enable these if you explicitly do not want to use "std", otherwise enable
 # the respective -std feature e.g., hashes-std

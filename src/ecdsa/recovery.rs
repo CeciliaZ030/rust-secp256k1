@@ -194,7 +194,8 @@ impl<C: Verification> Secp256k1<C> {
         msg: &Message,
         sig: &RecoverableSignature,
     ) -> Result<key::PublicKey, Error> {
-        unsafe {
+        let mut pk = [0u8; 64];
+        let res = unsafe {
             sp1_precompiles::unconstrained! {
                 let mut pk = super_ffi::PublicKey::new();
                 let success = ffi::secp256k1_ecdsa_recover(
@@ -204,16 +205,113 @@ impl<C: Verification> Secp256k1<C> {
                     msg.as_c_ptr(),
                 );
                 sp1_precompiles::io::hint(&success);
-                sp1_precompiles::io::hint_slice(&pk.underlying_bytes()); 
+                sp1_precompiles::io::hint_slice(&pk.underlying_bytes());
             }
             let success: i32 = sp1_precompiles::io::read();
-            let pk: [c_uchar; 64] = sp1_precompiles::io::read_vec().try_into().unwrap();
+            pk = sp1_precompiles::io::read_vec()
+                .try_into()
+                .expect("Fail in recover_ecdsa - sp1_precompiles::io::read_vec().try_into()");
             if success != 1 {
-                return Err(Error::InvalidSignature);
+                Err(Error::InvalidSignature)
+            } else {
+                Ok(key::PublicKey::from(ffi::PublicKey::from_array_unchecked(pk)))
             }
-            Ok(key::PublicKey::from(ffi::PublicKey::from_array_unchecked(pk)))
-        }
+        };
+        if !sp1_verify_signature(pk, msg.0) {
+            return Err(Error::InvalidSignature);
+        };
+        res
     }
+}
+
+fn sp1_verify_signature(pk: [u8; 64], msg: [u8; 32]) -> bool {
+    use core::convert::TryInto;
+
+    use k256::ecdsa::hazmat::bits2field;
+    use k256::ecdsa::signature::hazmat::PrehashVerifier;
+    use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
+    use k256::elliptic_curve::ff::PrimeFieldBits;
+    use k256::elliptic_curve::generic_array::GenericArray;
+    use k256::elliptic_curve::ops::Invert;
+    use k256::elliptic_curve::sec1::ToEncodedPoint;
+    use k256::elliptic_curve::PrimeField;
+
+    let sig = k256::ecdsa::Signature::from_slice(&pk)
+        .expect("Fail in recover_ecdsa - ecdsa::Signature::from_slice(&pk)");
+
+    let field = bits2field::<k256::Secp256k1>(&msg)
+        .expect("Fail in sp1_verify_signature: bits2field::<Secp256k1>(&msg)");
+
+    let pk_x = Scalar::from_repr(bits2field::<k256::Secp256k1>(&pk[1..33]).unwrap()).unwrap();
+    let pk_y = Scalar::from_repr(bits2field::<k256::Secp256k1>(&pk[33..]).unwrap()).unwrap();
+
+    let mut pk_x_le_bytes = pk_x.to_bytes();
+    pk_x_le_bytes.reverse();
+    let pk_x: [u8; 32] = pk_x_le_bytes.into();
+    let mut pk_y_le_bytes = pk_y.to_bytes();
+    pk_y_le_bytes.reverse();
+    let pk_y: [u8; 32] = pk_y_le_bytes.into();
+
+    // Convert the public key to an affine point
+    let affine = AffinePoint::<Secp256k1Operations, NUM_WORDS>::from(&pk_x, &pk_y);
+
+    let z = Scalar::from_repr(field).unwrap();
+    let (r, s) = sig.split_scalars();
+    let s_inv = s.invert();
+    let u1 = z * &(*s_inv);
+    let u2 = *r * &(*s_inv);
+
+    const GENERATOR: AffinePoint<Secp256k1Operations, NUM_WORDS> =
+        AffinePoint::<Secp256k1Operations, NUM_WORDS>::generator_in_affine();
+
+    let mut recovered_r = double_and_add_base(&u1, &GENERATOR, &u2, &affine).unwrap().to_le_bytes();
+
+    recovered_r.reverse();
+    let r_x = bits2field::<k256::Secp256k1>(&recovered_r);
+
+    *r == Scalar::from_repr(r_x.unwrap())
+        .expect("Fail in sp1_verify_signature: *r == Scalar::from_repr(x_field.unwrap())")
+}
+
+use k256::elliptic_curve::ff::PrimeFieldBits;
+use k256::Scalar;
+use sp1_precompiles::secp256k1::Secp256k1Operations;
+use sp1_precompiles::utils::{AffinePoint, CurveOperations};
+const NUM_WORDS: usize = 16;
+
+#[allow(non_snake_case)]
+fn double_and_add_base(
+    a: &Scalar,
+    A: &AffinePoint<Secp256k1Operations, NUM_WORDS>,
+    b: &Scalar,
+    B: &AffinePoint<Secp256k1Operations, NUM_WORDS>,
+) -> Option<AffinePoint<Secp256k1Operations, NUM_WORDS>> {
+    let mut res: Option<AffinePoint<Secp256k1Operations, NUM_WORDS>> = None;
+    let mut temp_A = *A;
+    let mut temp_B = *B;
+
+    let a_bits = a.to_le_bits();
+    let b_bits = b.to_le_bits();
+    for (a_bit, b_bit) in a_bits.iter().zip(b_bits) {
+        if *a_bit {
+            match res.as_mut() {
+                Some(res) => res.add_assign(&temp_A),
+                None => res = Some(temp_A),
+            };
+        }
+
+        if b_bit {
+            match res.as_mut() {
+                Some(res) => res.add_assign(&temp_B),
+                None => res = Some(temp_B),
+            };
+        }
+
+        temp_A.double();
+        temp_B.double();
+    }
+
+    res
 }
 
 #[cfg(test)]
