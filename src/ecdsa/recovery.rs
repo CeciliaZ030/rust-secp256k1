@@ -187,6 +187,28 @@ impl<C: Signing> Secp256k1<C> {
 impl<C: Verification> Secp256k1<C> {
     /// Determines the public key for which `sig` is a valid signature for
     /// `msg`. Requires a verify-capable context.
+    #[cfg(not(feature = "sp1"))]
+    pub fn recover_ecdsa(
+        &self,
+        msg: &Message,
+        sig: &RecoverableSignature,
+    ) -> Result<key::PublicKey, Error> {
+        unsafe {
+            let mut pk = super_ffi::PublicKey::new();
+            if ffi::secp256k1_ecdsa_recover(
+                self.ctx.as_ptr(),
+                &mut pk,
+                sig.as_c_ptr(),
+                msg.as_c_ptr(),
+            ) != 1
+            {
+                return Err(Error::InvalidSignature);
+            }
+            Ok(key::PublicKey::from(pk))
+        }
+    }
+    
+    #[cfg(feature = "sp1")]
     pub fn recover_ecdsa(
         &self,
         msg: &Message,
@@ -222,6 +244,7 @@ impl<C: Verification> Secp256k1<C> {
     }
 }
 
+#[cfg(feature = "sp1")]
 mod sp1 {
 
     use k256::ecdsa::hazmat::bits2field;

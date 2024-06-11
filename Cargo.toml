@@ -34,13 +34,16 @@ global-context = ["std"]
 # if you are doing a no-std build, then this feature does nothing
 # and is not necessary.)
 global-context-less-secure = ["global-context"]
+sp1 = ["dep:sp1-precompiles", "dep:tiny-keccak", "dep:k256", "secp256k1-sys/sp1"]
+
 
 [dependencies]
 secp256k1-sys = { version = "0.10.0", default-features = false, path = "./secp256k1-sys" }
 serde = { version = "1.0.103", default-features = false, optional = true }
-sp1-precompiles = { git = "https://github.com/succinctlabs/sp1.git", branch = "main", optional = false}
-tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", branch = "patch-v2.0.2" , features = ["keccak"], optional = false }
-k256 = { version = "0.13.3", features = ["ecdsa", "std", "bits"] }
+
+sp1-precompiles = { git = "https://github.com/succinctlabs/sp1.git", branch = "main", optional = true }
+tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", branch = "patch-v2.0.2" , features = ["keccak"], optional = true }
+k256 = { version = "0.13.3", features = ["ecdsa", "std", "bits"], optional = true }
 
 # You likely only want to enable these if you explicitly do not want to use "std", otherwise enable
 # the respective -std feature e.g., hashes-std
@@ -73,7 +76,3 @@ required-features = ["rand-std"]
 [workspace]
 members = ["secp256k1-sys"]
 exclude = ["no_std_test"]
-
-[feature]
-default = ["sp1"]
-sp1 = ["dep:sp1-precompiles", "dep:tiny-keccak"]

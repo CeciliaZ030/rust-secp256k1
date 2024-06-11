@@ -47,6 +47,8 @@ fn main() {
     if env::var("CARGO_CFG_TARGET_ARCH").unwrap() == "wasm32" {
         base_config.include("wasm/wasm-sysroot").file("wasm/wasm.c");
     }
+    
+    #[cfg(feature = "sp1")]
     // RISCV32 missing intrinsics __ctzsi2. We provide custom impl
     base_config.include("riscv32").file("riscv32/ctzsi2.c");
 
