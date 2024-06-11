@@ -47,6 +47,9 @@ fn main() {
         base_config.include("wasm/wasm-sysroot")
                    .file("wasm/wasm.c");
     }
+    // RISCV32 missing intrinsics __ctzsi2. We provide custom impl
+    base_config.include("riscv32")
+        .file("riscv32/ctzsi2.c");
 
     // secp256k1
     base_config.file("depend/secp256k1/contrib/lax_der_parsing.c")

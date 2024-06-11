@@ -2,7 +2,7 @@
 
 //! # FFI of the recovery module
 
-use crate::{Context, Signature, NonceFn, PublicKey, CPtr, impl_array_newtype, secp256k1_context_no_precomp};
+pub use crate::{Context, Signature, NonceFn, PublicKey, CPtr, impl_array_newtype, secp256k1_context_no_precomp};
 use crate::types::*;
 use core::fmt;
 

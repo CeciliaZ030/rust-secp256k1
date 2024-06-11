@@ -6,6 +6,8 @@
 
 use core::ptr;
 
+use super_ffi::types::c_uchar;
+
 use self::super_ffi::CPtr;
 use super::ffi as super_ffi;
 use crate::ecdsa::Signature;
@@ -193,17 +195,23 @@ impl<C: Verification> Secp256k1<C> {
         sig: &RecoverableSignature,
     ) -> Result<key::PublicKey, Error> {
         unsafe {
-            let mut pk = super_ffi::PublicKey::new();
-            if ffi::secp256k1_ecdsa_recover(
-                self.ctx.as_ptr(),
-                &mut pk,
-                sig.as_c_ptr(),
-                msg.as_c_ptr(),
-            ) != 1
-            {
+            sp1_precompiles::unconstrained! {
+                let mut pk = super_ffi::PublicKey::new();
+                let success = ffi::secp256k1_ecdsa_recover(
+                    self.ctx.as_ptr(),
+                    &mut pk,
+                    sig.as_c_ptr(),
+                    msg.as_c_ptr(),
+                );
+                sp1_precompiles::io::hint(&success);
+                sp1_precompiles::io::hint_slice(&pk.underlying_bytes()); 
+            }
+            let success: i32 = sp1_precompiles::io::read();
+            let pk: [c_uchar; 64] = sp1_precompiles::io::read_vec().try_into().unwrap();
+            if success != 1 {
                 return Err(Error::InvalidSignature);
             }
-            Ok(key::PublicKey::from(pk))
+            Ok(key::PublicKey::from(ffi::PublicKey::from_array_unchecked(pk)))
         }
     }
 }
