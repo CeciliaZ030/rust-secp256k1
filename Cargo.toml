@@ -41,7 +41,7 @@ sp1 = ["dep:sp1-precompiles", "dep:tiny-keccak", "dep:k256", "secp256k1-sys/sp1"
 secp256k1-sys = { version = "0.10.0", default-features = false, path = "./secp256k1-sys" }
 serde = { version = "1.0.103", default-features = false, optional = true }
 
-sp1-precompiles = { git = "https://github.com/succinctlabs/sp1.git", branch = "main", optional = true }
+sp1-precompiles = { git = "https://github.com/succinctlabs/sp1.git", tag = "v1.0.5-testnet", optional = true }
 tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", branch = "patch-v2.0.2" , features = ["keccak"], optional = true }
 k256 = { version = "0.13.3", features = ["ecdsa", "std", "bits"], optional = true }
 
