@@ -18,7 +18,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["std"]
+default = ["std", "recovery"]
 std = ["alloc", "secp256k1-sys/std"]
 # allow use of Secp256k1::new and related API that requires an allocator
 alloc = ["secp256k1-sys/alloc"]
@@ -34,10 +34,16 @@ global-context = ["std"]
 # if you are doing a no-std build, then this feature does nothing
 # and is not necessary.)
 global-context-less-secure = ["global-context"]
+sp1 = ["dep:sp1-precompiles", "dep:tiny-keccak", "dep:k256", "secp256k1-sys/sp1"]
+
 
 [dependencies]
 secp256k1-sys = { version = "0.10.0", default-features = false, path = "./secp256k1-sys" }
 serde = { version = "1.0.103", default-features = false, optional = true }
+
+sp1-precompiles = { git = "https://github.com/succinctlabs/sp1.git", tag = "v1.0.5-testnet", optional = true }
+tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", branch = "patch-v2.0.2" , features = ["keccak"], optional = true }
+k256 = { version = "0.13.3", features = ["ecdsa", "std", "bits"], optional = true }
 
 # You likely only want to enable these if you explicitly do not want to use "std", otherwise enable
 # the respective -std feature e.g., hashes-std
